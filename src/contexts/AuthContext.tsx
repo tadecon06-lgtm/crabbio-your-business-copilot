@@ -1,53 +1,145 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types/chat';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  signup: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('crabbio-user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (email: string, _password: string) => {
-    // Mock login - in production, this would call your auth API
-    const mockUser: User = {
-      id: '1',
-      email,
-      name: email.split('@')[0],
-      plan: 'free',
-    };
-    setUser(mockUser);
-    localStorage.setItem('crabbio-user', JSON.stringify(mockUser));
+  const fetchProfile = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    if (profile) {
+      setUser({
+        id: profile.id,
+        email: profile.email || '',
+        name: profile.name || '',
+        avatarUrl: profile.avatar_url || undefined,
+        language: profile.language || 'es',
+        fontSize: profile.font_size || 'medium',
+        streamingEnabled: profile.streaming_enabled ?? true,
+      });
+    }
   };
 
-  const signup = async (email: string, _password: string, name: string) => {
-    // Mock signup
-    const mockUser: User = {
-      id: '1',
-      email,
-      name,
-      plan: 'free',
-    };
-    setUser(mockUser);
-    localStorage.setItem('crabbio-user', JSON.stringify(mockUser));
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Defer Supabase calls
+          setTimeout(() => {
+            fetchProfile(currentSession.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      if (existingSession?.user) {
+        fetchProfile(existingSession.user.id);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        return { error: 'Email o contraseña incorrectos' };
+      }
+      return { error: error.message };
+    }
+    return {};
   };
 
-  const logout = () => {
+  const signup = async (email: string, password: string, name: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { name }
+      }
+    });
+    
+    if (error) {
+      if (error.message.includes('already registered')) {
+        return { error: 'Este email ya está registrado' };
+      }
+      return { error: error.message };
+    }
+    return {};
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('crabbio-user');
+    setSession(null);
+  };
+
+  const updateProfile = async (updates: Partial<User>) => {
+    if (!user) return { error: 'No user logged in' };
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: updates.name,
+        avatar_url: updates.avatarUrl,
+        language: updates.language,
+        font_size: updates.fontSize,
+        streaming_enabled: updates.streamingEnabled,
+      })
+      .eq('id', user.id);
+    
+    if (error) return { error: error.message };
+    
+    setUser({ ...user, ...updates });
+    return {};
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      isAuthenticated: !!session,
+      isLoading,
+      login,
+      signup,
+      logout,
+      updateProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   );

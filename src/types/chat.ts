@@ -1,9 +1,18 @@
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  size: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   feedback?: 'positive' | 'negative';
+  attachments?: Attachment[];
 }
 
 export interface Chat {
@@ -21,5 +30,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
-  plan: 'free' | 'pro' | 'enterprise';
+  language?: string;
+  fontSize?: string;
+  streamingEnabled?: boolean;
 }

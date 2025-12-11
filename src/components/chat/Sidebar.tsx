@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, Pin, Archive, MoreHorizontal, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, MessageSquare, Pin, Archive, MoreHorizontal, Pencil, Trash2, ChevronDown, Download, FileText, FileDown } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { useToast } from '@/hooks/use-toast';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -31,13 +32,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [pinnedOpen, setPinnedOpen] = useState(true);
   const [recentOpen, setRecentOpen] = useState(true);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const { toast } = useToast();
 
   const pinnedChats = chats.filter(c => c.isPinned && !c.isArchived);
   const recentChats = chats.filter(c => !c.isPinned && !c.isArchived);
   const archivedChats = chats.filter(c => c.isArchived);
 
-  const handleNewChat = () => {
-    createChat();
+  const handleNewChat = async () => {
+    await createChat();
     onClose?.();
   };
 
@@ -51,11 +53,64 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     setEditTitle(title);
   };
 
-  const saveEdit = (id: string) => {
+  const saveEdit = async (id: string) => {
     if (editTitle.trim()) {
-      renameChat(id, editTitle.trim());
+      await renameChat(id, editTitle.trim());
     }
     setEditingId(null);
+  };
+
+  const exportToMarkdown = (chat: typeof chats[0]) => {
+    const content = chat.messages.map(m => 
+      `## ${m.role === 'user' ? 'Tú' : 'Crabbio'}\n\n${m.content}\n`
+    ).join('\n---\n\n');
+    
+    const blob = new Blob([`# ${chat.title}\n\n${content}`], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${chat.title.replace(/[^a-z0-9]/gi, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exportado', description: 'Chat exportado a Markdown' });
+  };
+
+  const exportToPDF = async (chat: typeof chats[0]) => {
+    // Create a simple HTML version and use print-to-PDF
+    const content = chat.messages.map(m => 
+      `<div style="margin-bottom: 16px;">
+        <strong>${m.role === 'user' ? 'Tú' : 'Crabbio'}:</strong>
+        <p>${m.content.replace(/\n/g, '<br>')}</p>
+      </div>`
+    ).join('<hr>');
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${chat.title}</title>
+          <style>
+            body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; }
+            h1 { color: #F44E3B; }
+            hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>🦀 ${chat.title}</h1>
+          ${content}
+        </body>
+      </html>
+    `;
+    
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+    toast({ title: 'Exportando', description: 'Se abrirá el diálogo de impresión' });
   };
 
   const ChatItem = ({ chat }: { chat: typeof chats[0] }) => (
@@ -117,6 +172,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {chat.isArchived ? 'Desarchivar' : 'Archivar'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => exportToMarkdown(chat)}>
+            <FileText className="w-4 h-4 mr-2" />
+            Exportar Markdown
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => exportToPDF(chat)}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Exportar PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem 
             className="text-destructive focus:text-destructive"
             onClick={() => deleteChat(chat.id)}
@@ -167,7 +231,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         'fixed lg:relative z-40'
       )}
     >
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="p-4 border-b border-sidebar-border/50">
         <Logo className="mb-4" />
         <Button 
           onClick={handleNewChat}
@@ -183,22 +247,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <Section title="Fijados" chats={pinnedChats} isOpen={pinnedOpen} onToggle={() => setPinnedOpen(!pinnedOpen)} />
         )}
         
+        <div className="my-2 mx-3 border-t border-sidebar-border/30" />
+        
         <Section title="Recientes" chats={recentChats} isOpen={recentOpen} onToggle={() => setRecentOpen(!recentOpen)} />
         
         {archivedChats.length > 0 && (
-          <Section title="Archivados" chats={archivedChats} isOpen={archivedOpen} onToggle={() => setArchivedOpen(!archivedOpen)} />
+          <>
+            <div className="my-2 mx-3 border-t border-sidebar-border/30" />
+            <Section title="Archivados" chats={archivedChats} isOpen={archivedOpen} onToggle={() => setArchivedOpen(!archivedOpen)} />
+          </>
         )}
       </ScrollArea>
-      
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between text-xs text-sidebar-foreground/50">
-          <span>Plan gratuito</span>
-          <span>0 / 50 mensajes</span>
-        </div>
-        <div className="mt-2 h-1.5 bg-sidebar-accent rounded-full overflow-hidden">
-          <div className="h-full w-0 bg-primary rounded-full" />
-        </div>
-      </div>
     </motion.aside>
   );
 }
