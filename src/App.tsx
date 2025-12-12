@@ -9,9 +9,11 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
+import Docs from "./pages/Docs";
 import Export from "./pages/Export";
 import NotFound from "./pages/NotFound";
 
@@ -59,9 +61,11 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+      <Route path="/docs" element={<ProtectedRoute><Docs /></ProtectedRoute>} />
       <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

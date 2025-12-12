@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageSquare, Pin, Archive, MoreHorizontal, Pencil, Trash2, ChevronDown, Download, FileText, FileDown } from 'lucide-react';
+import { Plus, MessageSquare, Pin, Archive, MoreHorizontal, Pencil, Trash2, ChevronDown, FileText, FileDown, Check, X } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -32,11 +33,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [pinnedOpen, setPinnedOpen] = useState(true);
   const [recentOpen, setRecentOpen] = useState(true);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const pinnedChats = chats.filter(c => c.isPinned && !c.isArchived);
   const recentChats = chats.filter(c => !c.isPinned && !c.isArchived);
   const archivedChats = chats.filter(c => c.isArchived);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
 
   const handleNewChat = async () => {
     await createChat();
@@ -44,20 +53,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const handleSelectChat = (id: string) => {
+    if (editingId) return; // Don't select while editing
     selectChat(id);
     onClose?.();
   };
 
-  const startEditing = (id: string, title: string) => {
+  const startEditing = (e: React.MouseEvent, id: string, title: string) => {
+    e.stopPropagation();
     setEditingId(id);
     setEditTitle(title);
   };
 
-  const saveEdit = async (id: string) => {
-    if (editTitle.trim()) {
-      await renameChat(id, editTitle.trim());
+  const saveEdit = async () => {
+    if (editingId && editTitle.trim()) {
+      await renameChat(editingId, editTitle.trim());
+      toast({ title: 'Chat renombrado' });
     }
     setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
   };
 
   const exportToMarkdown = (chat: typeof chats[0]) => {
@@ -65,7 +82,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       `## ${m.role === 'user' ? 'Tú' : 'Crabbio'}\n\n${m.content}\n`
     ).join('\n---\n\n');
     
-    const blob = new Blob([`# ${chat.title}\n\n${content}`], { type: 'text/markdown' });
+    const blob = new Blob([`# ${chat.title}\n\n${content}`], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -76,23 +93,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const exportToPDF = async (chat: typeof chats[0]) => {
-    // Create a simple HTML version and use print-to-PDF
     const content = chat.messages.map(m => 
       `<div style="margin-bottom: 16px;">
         <strong>${m.role === 'user' ? 'Tú' : 'Crabbio'}:</strong>
-        <p>${m.content.replace(/\n/g, '<br>')}</p>
+        <p style="white-space: pre-wrap;">${m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>
       </div>`
-    ).join('<hr>');
+    ).join('<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">');
     
     const html = `
       <!DOCTYPE html>
-      <html>
+      <html lang="es">
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${chat.title}</title>
           <style>
-            body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; }
-            h1 { color: #F44E3B; }
-            hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+            @charset "UTF-8";
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+              max-width: 800px; 
+              margin: 0 auto; 
+              padding: 40px;
+              line-height: 1.6;
+            }
+            h1 { color: #F44E3B; margin-bottom: 24px; }
+            p { margin: 8px 0; }
+            strong { color: #333; }
           </style>
         </head>
         <body>
@@ -102,96 +128,118 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </html>
     `;
     
-    const blob = new Blob([html], { type: 'text/html' });
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const printWindow = window.open(url, '_blank');
     if (printWindow) {
       printWindow.onload = () => {
-        printWindow.print();
+        setTimeout(() => printWindow.print(), 250);
       };
     }
     toast({ title: 'Exportando', description: 'Se abrirá el diálogo de impresión' });
   };
 
-  const ChatItem = ({ chat }: { chat: typeof chats[0] }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -10 }}
-      className={cn(
-        'group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors',
-        currentChatId === chat.id 
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
-          : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/80'
-      )}
-      onClick={() => handleSelectChat(chat.id)}
-    >
-      <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-foreground/60" />
-      
-      {editingId === chat.id ? (
-        <input
-          autoFocus
-          className="flex-1 bg-transparent border-none outline-none text-sm"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onBlur={() => saveEdit(chat.id)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') saveEdit(chat.id);
-            if (e.key === 'Escape') setEditingId(null);
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <span className="flex-1 text-sm truncate">{chat.title}</span>
-      )}
-      
-      {chat.isPinned && <Pin className="w-3 h-3 text-primary" />}
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={() => startEditing(chat.id, chat.title)}>
-            <Pencil className="w-4 h-4 mr-2" />
-            Renombrar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => togglePinChat(chat.id)}>
-            <Pin className="w-4 h-4 mr-2" />
-            {chat.isPinned ? 'Desfijar' : 'Fijar'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => archiveChat(chat.id)}>
-            <Archive className="w-4 h-4 mr-2" />
-            {chat.isArchived ? 'Desarchivar' : 'Archivar'}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => exportToMarkdown(chat)}>
-            <FileText className="w-4 h-4 mr-2" />
-            Exportar Markdown
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => exportToPDF(chat)}>
-            <FileDown className="w-4 h-4 mr-2" />
-            Exportar PDF
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            className="text-destructive focus:text-destructive"
-            onClick={() => deleteChat(chat.id)}
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Eliminar
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </motion.div>
-  );
+  const ChatItem = ({ chat }: { chat: typeof chats[0] }) => {
+    const isEditing = editingId === chat.id;
+    
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -10 }}
+        className={cn(
+          'group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors',
+          currentChatId === chat.id && !isEditing
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+            : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/80'
+        )}
+        onClick={() => handleSelectChat(chat.id)}
+      >
+        <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-foreground/60" />
+        
+        {isEditing ? (
+          <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Input
+              ref={editInputRef}
+              className="h-7 text-sm bg-sidebar-accent border-sidebar-border"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEdit();
+                if (e.key === 'Escape') cancelEdit();
+              }}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-6 h-6 text-green-500 hover:text-green-400 hover:bg-sidebar-accent"
+              onClick={saveEdit}
+            >
+              <Check className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-6 h-6 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              onClick={cancelEdit}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <span className="flex-1 text-sm truncate">{chat.title}</span>
+            
+            {chat.isPinned && <Pin className="w-3 h-3 text-primary" />}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={(e) => startEditing(e, chat.id, chat.title)}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Renombrar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => togglePinChat(chat.id)}>
+                  <Pin className="w-4 h-4 mr-2" />
+                  {chat.isPinned ? 'Desfijar' : 'Fijar'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => archiveChat(chat.id)}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  {chat.isArchived ? 'Desarchivar' : 'Archivar'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => exportToMarkdown(chat)}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Exportar Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportToPDF(chat)}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Exportar PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => deleteChat(chat.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
+      </motion.div>
+    );
+  };
 
   const Section = ({ 
     title, 
