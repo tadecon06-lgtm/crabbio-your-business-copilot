@@ -9,9 +9,14 @@ interface ChatContextType {
   currentChatId: string | null;
   currentChat: Chat | null;
   isLoadingChats: boolean;
+  isTemporaryMode: boolean;
+  temporaryMessages: Message[];
+  setTemporaryMode: (enabled: boolean) => void;
   createChat: () => Promise<string>;
   selectChat: (id: string) => void;
   addMessage: (chatId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>;
+  addTemporaryMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+  clearTemporaryChat: () => void;
   renameChat: (chatId: string, title: string) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   togglePinChat: (chatId: string) => Promise<void>;
@@ -31,6 +36,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [isTemporaryMode, setIsTemporaryMode] = useState(false);
+  const [temporaryMessages, setTemporaryMessages] = useState<Message[]>([]);
 
   const refreshChats = useCallback(async () => {
     if (!isAuthenticated || !user) return;
@@ -83,8 +90,41 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     refreshChats();
   }, [refreshChats]);
 
+  // Clear temporary chat when mode changes
+  useEffect(() => {
+    if (!isTemporaryMode) {
+      setTemporaryMessages([]);
+    }
+  }, [isTemporaryMode]);
+
+  const setTemporaryMode = useCallback((enabled: boolean) => {
+    setIsTemporaryMode(enabled);
+    if (enabled) {
+      setCurrentChatId(null);
+      setTemporaryMessages([]);
+    }
+  }, []);
+
+  const addTemporaryMessage = useCallback((message: Omit<Message, 'id' | 'timestamp'>) => {
+    const newMessage: Message = {
+      id: crypto.randomUUID(),
+      ...message,
+      timestamp: new Date(),
+    };
+    setTemporaryMessages(prev => [...prev, newMessage]);
+  }, []);
+
+  const clearTemporaryChat = useCallback(() => {
+    setTemporaryMessages([]);
+  }, []);
+
   const createChat = useCallback(async (): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
+    
+    // If in temporary mode, just return a fake ID
+    if (isTemporaryMode) {
+      return 'temporary';
+    }
     
     const { data, error } = await supabase
       .from('chats')
@@ -107,13 +147,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setChats(prev => [newChat, ...prev]);
     setCurrentChatId(data.id);
     return data.id;
-  }, [user]);
+  }, [user, isTemporaryMode]);
 
   const selectChat = useCallback((id: string) => {
+    if (isTemporaryMode) {
+      setIsTemporaryMode(false);
+    }
     setCurrentChatId(id);
-  }, []);
+  }, [isTemporaryMode]);
 
   const addMessage = useCallback(async (chatId: string, message: Omit<Message, 'id' | 'timestamp'>) => {
+    // If in temporary mode, use temporary messages
+    if (isTemporaryMode || chatId === 'temporary') {
+      addTemporaryMessage(message);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .insert({
@@ -154,7 +203,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(),
       };
     }));
-  }, []);
+  }, [isTemporaryMode, addTemporaryMessage]);
 
   const renameChat = useCallback(async (chatId: string, title: string) => {
     const { error } = await supabase
@@ -221,9 +270,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       currentChatId,
       currentChat,
       isLoadingChats,
+      isTemporaryMode,
+      temporaryMessages,
+      setTemporaryMode,
       createChat,
       selectChat,
       addMessage,
+      addTemporaryMessage,
+      clearTemporaryChat,
       renameChat,
       deleteChat,
       togglePinChat,

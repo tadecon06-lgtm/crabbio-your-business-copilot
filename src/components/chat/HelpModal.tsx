@@ -1,4 +1,5 @@
 import { Keyboard, Book, MessageCircle, Mail, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -70,10 +71,9 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
 
           {/* Links */}
           <div className="space-y-2">
-            <a 
-              href="https://docs.crabbio.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <Link 
+              to="/docs"
+              onClick={() => onOpenChange(false)}
               className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-accent transition-colors"
             >
               <Book className="w-5 h-5 text-primary" />
@@ -82,7 +82,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                 <p className="text-xs text-muted-foreground">Guías y tutoriales</p>
               </div>
               <ExternalLink className="w-4 h-4 text-muted-foreground" />
-            </a>
+            </Link>
             
             <a 
               href="mailto:soporte@crabbio.com"

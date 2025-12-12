@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Type, Sparkles } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Type, Sparkles, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -23,7 +22,6 @@ export default function Settings() {
   const { toast } = useToast();
   const [fontSize, setFontSize] = useState(user?.fontSize || 'medium');
   const [streamingEnabled, setStreamingEnabled] = useState(user?.streamingEnabled ?? true);
-  const [model, setModel] = useState('gemini-2.5-flash');
 
   const handleFontSizeChange = async (value: string) => {
     setFontSize(value);
@@ -71,7 +69,7 @@ export default function Settings() {
             <Type className="w-5 h-5" />
             <div>
               <p className="font-medium">Tamaño de fuente</p>
-              <p className="text-sm text-muted-foreground">Ajustá el tamaño del texto</p>
+              <p className="text-sm text-muted-foreground">Ajustá el tamaño del texto en el chat</p>
             </div>
           </div>
           <Select value={fontSize} onValueChange={handleFontSizeChange}>
@@ -100,28 +98,21 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* AI Model (placeholder) */}
+        {/* AI Model - Fixed */}
         <div className="p-4 rounded-xl border border-border bg-card">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-xl">🤖</span>
+          <div className="flex items-center gap-3">
+            <Bot className="w-5 h-5 text-primary" />
             <div>
               <p className="font-medium">Modelo de IA</p>
-              <p className="text-sm text-muted-foreground">Seleccioná el modelo a usar</p>
+              <p className="text-sm text-muted-foreground">Crabbio (GPT personalizado)</p>
             </div>
           </div>
-          <Select value={model} onValueChange={setModel}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</SelectItem>
-              <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-              <SelectItem value="gpt-5">GPT-5</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-2">
-            Próximamente: conectá tu propio GPT personalizado
-          </p>
+          <div className="mt-3 p-3 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">
+              Crabbio usa un modelo de IA optimizado para emprendedores. 
+              No es necesario configurar nada adicional.
+            </p>
+          </div>
         </div>
       </motion.main>
     </div>

@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
   signup: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  loginWithGoogle: () => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<{ error?: string }>;
 }
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
+    // Check if email already exists
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -95,9 +97,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (error) {
-      if (error.message.includes('already registered')) {
-        return { error: 'Este email ya está registrado' };
+      if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+        return { error: 'Esta cuenta ya está registrada. Iniciá sesión o recuperá tu contraseña.' };
       }
+      return { error: error.message };
+    }
+    return {};
+  };
+
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
+    });
+    
+    if (error) {
       return { error: error.message };
     }
     return {};
@@ -137,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       login,
       signup,
+      loginWithGoogle,
       logout,
       updateProfile,
     }}>
