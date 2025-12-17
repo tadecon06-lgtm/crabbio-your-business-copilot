@@ -4,9 +4,10 @@ interface LogoProps {
   className?: string;
   showText?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'sidebar';
 }
 
-export function Logo({ className, showText = true, size = 'md' }: LogoProps) {
+export function Logo({ className, showText = true, size = 'md', variant = 'default' }: LogoProps) {
   const sizes = {
     sm: { icon: 'w-6 h-6', text: 'text-lg' },
     md: { icon: 'w-8 h-8', text: 'text-xl' },
@@ -24,7 +25,11 @@ export function Logo({ className, showText = true, size = 'md' }: LogoProps) {
         </span>
       </div>
       {showText && (
-        <span className={cn('font-bold tracking-tight text-foreground', sizes[size].text)}>
+        <span className={cn(
+          'font-bold tracking-tight',
+          variant === 'sidebar' ? 'text-sidebar-foreground' : 'text-foreground',
+          sizes[size].text
+        )}>
           Crabbio
         </span>
       )}

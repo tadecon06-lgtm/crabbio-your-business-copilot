@@ -9,13 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -24,7 +17,6 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [name, setName] = useState(user?.name || '');
-  const [language, setLanguage] = useState(user?.language || 'es');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +50,7 @@ export default function Profile() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const { error } = await updateProfile({ name, language });
+      const { error } = await updateProfile({ name });
       if (error) {
         toast({ title: 'Error', description: error, variant: 'destructive' });
       } else {
@@ -123,21 +115,7 @@ export default function Profile() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="language">Idioma</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="es">Español</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="pt">Português</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button 
+          <Button
             onClick={handleSave} 
             className="w-full"
             disabled={isLoading}

@@ -1,4 +1,4 @@
-import { Keyboard, Book, MessageCircle, Mail, ExternalLink } from 'lucide-react';
+import { Book, MessageCircle, Mail, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   Dialog,
@@ -13,13 +13,6 @@ interface HelpModalProps {
 }
 
 export function HelpModal({ open, onOpenChange }: HelpModalProps) {
-  const shortcuts = [
-    { keys: ['Ctrl/Cmd', 'K'], description: 'Buscar conversaciones' },
-    { keys: ['Ctrl/Cmd', 'Enter'], description: 'Enviar mensaje' },
-    { keys: ['Shift', 'Enter'], description: 'Nueva línea' },
-    { keys: ['Esc'], description: 'Cerrar modales' },
-  ];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -31,30 +24,6 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Keyboard shortcuts */}
-          <div>
-            <h3 className="flex items-center gap-2 text-sm font-semibold mb-3">
-              <Keyboard className="w-4 h-4" />
-              Atajos de teclado
-            </h3>
-            <div className="space-y-2">
-              {shortcuts.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{shortcut.description}</span>
-                  <div className="flex items-center gap-1">
-                    {shortcut.keys.map((key, i) => (
-                      <span key={i}>
-                        <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
-                          {key}
-                        </kbd>
-                        {i < shortcut.keys.length - 1 && <span className="mx-1 text-muted-foreground">+</span>}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* How it works */}
           <div>
