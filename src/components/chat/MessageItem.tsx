@@ -11,9 +11,10 @@ interface MessageItemProps {
   message: Message;
   isStreaming?: boolean;
   onRegenerate?: () => void;
+  fontSize?: 'small' | 'medium' | 'large';
 }
 
-export function MessageItem({ message, isStreaming, onRegenerate }: MessageItemProps) {
+export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'medium' }: MessageItemProps) {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(message.feedback || null);
@@ -54,9 +55,12 @@ export function MessageItem({ message, isStreaming, onRegenerate }: MessageItemP
         </div>
         
         <div className={cn(
-          'prose prose-sm max-w-none',
+          'prose max-w-none',
           isUser ? 'text-chat-user-foreground' : 'text-chat-assistant-foreground',
-          'prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5'
+          'prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5',
+          fontSize === 'small' && 'text-sm',
+          fontSize === 'medium' && 'text-base',
+          fontSize === 'large' && 'text-lg'
         )}>
           <p className="whitespace-pre-wrap">{message.content}</p>
           {isStreaming && (

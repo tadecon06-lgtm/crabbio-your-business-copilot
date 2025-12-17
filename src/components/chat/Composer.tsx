@@ -202,7 +202,11 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isDragging ? "Soltá el archivo aquí..." : "Escribí tu mensaje..."}
-            className="flex-1 min-h-[24px] max-h-[200px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
+            className={cn(
+              "flex-1 min-h-[24px] max-h-[200px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60",
+              user?.fontSize === 'small' && 'text-sm',
+              user?.fontSize === 'large' && 'text-lg'
+            )}
             rows={1}
             disabled={isLoading}
           />

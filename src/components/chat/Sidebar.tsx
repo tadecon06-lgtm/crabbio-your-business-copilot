@@ -5,7 +5,6 @@ import { useChat } from '@/contexts/ChatContext';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -143,11 +142,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const isEditing = editingId === chat.id;
     
     return (
-      <motion.div
-        layout
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -10 }}
+      <div
         className={cn(
           'group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors',
           currentChatId === chat.id && !isEditing
@@ -160,15 +155,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         
         {isEditing ? (
           <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <Input
+            <input
               ref={editInputRef}
-              className="h-7 text-sm bg-sidebar-accent border-sidebar-border"
+              className="flex-1 h-7 px-2 text-sm bg-sidebar-accent border border-sidebar-border rounded text-sidebar-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={(e) => {
+                e.stopPropagation();
                 if (e.key === 'Enter') saveEdit();
                 if (e.key === 'Escape') cancelEdit();
               }}
+              autoFocus
             />
             <Button
               variant="ghost"
@@ -237,7 +234,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </DropdownMenu>
           </>
         )}
-      </motion.div>
+      </div>
     );
   };
 
@@ -246,7 +243,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     chats, 
     isOpen, 
     onToggle 
-  }: { 
+  }: {
     title: string; 
     chats: typeof pinnedChats; 
     isOpen: boolean; 
@@ -280,7 +277,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
     >
       <div className="p-4 border-b border-sidebar-border/50">
-        <Logo className="mb-4" />
+        <Logo className="mb-4" variant="sidebar" />
         <Button 
           onClick={handleNewChat}
           className="w-full justify-start gap-2 bg-primary hover:bg-crab-orange-hover text-primary-foreground"

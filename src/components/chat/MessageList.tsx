@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { Message } from '@/types/chat';
 import { MessageItem } from './MessageItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageListProps {
   messages: Message[];
@@ -11,6 +12,8 @@ interface MessageListProps {
 
 export function MessageList({ messages, isStreaming, streamingContent }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const fontSize = (user?.fontSize as 'small' | 'medium' | 'large') || 'medium';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,6 +26,7 @@ export function MessageList({ messages, isStreaming, streamingContent }: Message
           <MessageItem 
             key={message.id} 
             message={message}
+            fontSize={fontSize}
             onRegenerate={
               message.role === 'assistant' && index === messages.length - 1 
                 ? () => {} 
@@ -40,6 +44,7 @@ export function MessageList({ messages, isStreaming, streamingContent }: Message
               timestamp: new Date(),
             }}
             isStreaming
+            fontSize={fontSize}
           />
         )}
         

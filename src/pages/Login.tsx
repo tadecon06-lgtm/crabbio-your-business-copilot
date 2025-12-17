@@ -53,10 +53,23 @@ export default function Login() {
     try {
       const { error } = await loginWithGoogle();
       if (error) {
-        toast({ title: 'Error', description: error, variant: 'destructive' });
+        // Handle provider not enabled error gracefully
+        if (error.includes('provider') || error.includes('Unsupported') || error.includes('not enabled')) {
+          toast({ 
+            title: 'Google no disponible', 
+            description: 'No pudimos iniciar sesión con Google en este momento. Usá tu email y contraseña.',
+            variant: 'destructive' 
+          });
+        } else {
+          toast({ title: 'Error', description: error, variant: 'destructive' });
+        }
       }
     } catch {
-      toast({ title: 'Error', description: 'Error al conectar con Google', variant: 'destructive' });
+      toast({ 
+        title: 'Error', 
+        description: 'No pudimos conectar con Google. Intentá de nuevo más tarde o usá tu email y contraseña.',
+        variant: 'destructive' 
+      });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -172,6 +185,17 @@ export default function Login() {
             ¿No tenés cuenta?{' '}
             <Link to="/signup" className="text-primary font-medium hover:underline">
               Registrate gratis
+            </Link>
+          </p>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Al continuar, aceptás nuestros{' '}
+            <Link to="/terms" className="text-primary hover:underline">
+              Términos y Condiciones
+            </Link>{' '}
+            y{' '}
+            <Link to="/privacy" className="text-primary hover:underline">
+              Política de Privacidad
             </Link>
           </p>
         </motion.div>
