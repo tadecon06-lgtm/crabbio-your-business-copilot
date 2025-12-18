@@ -20,6 +20,7 @@ export type Database = {
           id: string
           is_archived: boolean | null
           is_pinned: boolean | null
+          project_id: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -29,6 +30,7 @@ export type Database = {
           id?: string
           is_archived?: boolean | null
           is_pinned?: boolean | null
+          project_id?: string | null
           title?: string
           updated_at?: string | null
           user_id: string
@@ -38,11 +40,20 @@ export type Database = {
           id?: string
           is_archived?: boolean | null
           is_pinned?: boolean | null
+          project_id?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chats_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
@@ -115,6 +126,33 @@ export type Database = {
           name?: string | null
           streaming_enabled?: boolean | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

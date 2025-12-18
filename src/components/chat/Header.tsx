@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Menu, Moon, Sun, HelpCircle, LogOut, Settings, User } from 'lucide-react';
+import { Menu, Moon, Sun, HelpCircle, LogOut, Settings, User, FileText } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChat } from '@/contexts/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -11,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { HelpModal } from './HelpModal';
 
 interface HeaderProps {
@@ -21,6 +22,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { currentChat, projects } = useChat();
   const navigate = useNavigate();
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -28,6 +30,11 @@ export function Header({ onMenuClick }: HeaderProps) {
     await logout();
     navigate('/login');
   };
+
+  // Get project name if current chat belongs to one
+  const currentProject = currentChat?.projectId 
+    ? projects.find(p => p.id === currentChat.projectId)
+    : null;
 
   return (
     <>
@@ -42,9 +49,16 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </Button>
           
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-foreground">Crabbio – GPT</span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-foreground">Crabbio – GPT</span>
+            </div>
+            {currentProject && (
+              <span className="text-xs text-muted-foreground ml-3 mt-0.5">
+                {currentProject.emoji} {currentProject.name}
+              </span>
+            )}
           </div>
         </div>
         
@@ -91,6 +105,12 @@ export function Header({ onMenuClick }: HeaderProps) {
               <DropdownMenuItem onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4 mr-2" />
                 Preferencias
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/export" className="cursor-pointer">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Exportar datos
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">

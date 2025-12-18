@@ -21,8 +21,18 @@ export interface Chat {
   messages: Message[];
   createdAt: Date;
   updatedAt: Date;
-  isPinned: boolean;
-  isArchived: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  projectId?: string | null;
+}
+
+export interface Project {
+  id: string;
+  userId: string;
+  name: string;
+  emoji: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface User {

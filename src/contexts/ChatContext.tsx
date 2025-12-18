@@ -1,17 +1,20 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import { Chat, Message, Attachment } from '@/types/chat';
+import { Chat, Message, Attachment, Project } from '@/types/chat';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { Json } from '@/integrations/supabase/types';
 
 interface ChatContextType {
   chats: Chat[];
+  projects: Project[];
   currentChatId: string | null;
   currentChat: Chat | null;
+  selectedProjectId: string | null;
   isLoadingChats: boolean;
   isTemporaryMode: boolean;
   temporaryMessages: Message[];
   setTemporaryMode: (enabled: boolean) => void;
+  setSelectedProjectId: (id: string | null) => void;
   createChat: () => Promise<string>;
   selectChat: (id: string) => void;
   addMessage: (chatId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>;
@@ -21,6 +24,10 @@ interface ChatContextType {
   deleteChat: (chatId: string) => Promise<void>;
   togglePinChat: (chatId: string) => Promise<void>;
   archiveChat: (chatId: string) => Promise<void>;
+  moveToProject: (chatId: string, projectId: string | null) => Promise<void>;
+  createProject: (name: string, emoji?: string) => Promise<string>;
+  renameProject: (projectId: string, name: string) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
   refreshChats: () => Promise<void>;
 }
 
@@ -34,7 +41,9 @@ function parseAttachments(attachments: Json | null): Attachment[] {
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isTemporaryMode, setIsTemporaryMode] = useState(false);
   const [temporaryMessages, setTemporaryMessages] = useState<Message[]>([]);
@@ -44,6 +53,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     
     setIsLoadingChats(true);
     try {
+      // Fetch projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (projectsData) {
+        setProjects(projectsData.map(p => ({
+          id: p.id,
+          userId: p.user_id,
+          name: p.name,
+          emoji: p.emoji || '📁',
+          createdAt: new Date(p.created_at),
+          updatedAt: new Date(p.updated_at),
+        })));
+      }
+
+      // Fetch chats
       const { data: chatsData, error: chatsError } = await supabase
         .from('chats')
         .select('*')
@@ -64,13 +91,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             title: chat.title,
             isPinned: chat.is_pinned,
             isArchived: chat.is_archived,
-            createdAt: new Date(chat.created_at),
-            updatedAt: new Date(chat.updated_at),
+            projectId: chat.project_id,
+            createdAt: new Date(chat.created_at!),
+            updatedAt: new Date(chat.updated_at!),
             messages: (messagesData || []).map(msg => ({
               id: msg.id,
               role: msg.role as 'user' | 'assistant',
               content: msg.content,
-              timestamp: new Date(msg.created_at),
+              timestamp: new Date(msg.created_at!),
               feedback: msg.feedback as 'positive' | 'negative' | undefined,
               attachments: parseAttachments(msg.attachments),
             })),
@@ -90,14 +118,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     refreshChats();
   }, [refreshChats]);
 
-  // Clear temporary chat when mode changes
   useEffect(() => {
     if (!isTemporaryMode) {
       setTemporaryMessages([]);
     }
   }, [isTemporaryMode]);
 
-  const setTemporaryMode = useCallback((enabled: boolean) => {
+  const setTemporaryModeHandler = useCallback((enabled: boolean) => {
     setIsTemporaryMode(enabled);
     if (enabled) {
       setCurrentChatId(null);
@@ -121,14 +148,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const createChat = useCallback(async (): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
     
-    // If in temporary mode, just return a fake ID
     if (isTemporaryMode) {
       return 'temporary';
     }
     
     const { data, error } = await supabase
       .from('chats')
-      .insert({ user_id: user.id, title: 'Nueva conversación' })
+      .insert({ 
+        user_id: user.id, 
+        title: 'Nueva conversación',
+        project_id: selectedProjectId 
+      })
       .select()
       .single();
     
@@ -138,16 +168,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       id: data.id,
       title: data.title,
       messages: [],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      createdAt: new Date(data.created_at!),
+      updatedAt: new Date(data.updated_at!),
       isPinned: data.is_pinned,
       isArchived: data.is_archived,
+      projectId: data.project_id,
     };
     
     setChats(prev => [newChat, ...prev]);
     setCurrentChatId(data.id);
     return data.id;
-  }, [user, isTemporaryMode]);
+  }, [user, isTemporaryMode, selectedProjectId]);
 
   const selectChat = useCallback((id: string) => {
     if (isTemporaryMode) {
@@ -157,7 +188,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [isTemporaryMode]);
 
   const addMessage = useCallback(async (chatId: string, message: Omit<Message, 'id' | 'timestamp'>) => {
-    // If in temporary mode, use temporary messages
     if (isTemporaryMode || chatId === 'temporary') {
       addTemporaryMessage(message);
       return;
@@ -180,7 +210,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       id: data.id,
       role: data.role as 'user' | 'assistant',
       content: data.content,
-      timestamp: new Date(data.created_at),
+      timestamp: new Date(data.created_at!),
       attachments: parseAttachments(data.attachments),
     };
     
@@ -191,7 +221,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ? message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '')
         : chat.title;
       
-      // Update title in DB if needed
       if (title !== chat.title) {
         supabase.from('chats').update({ title }).eq('id', chatId);
       }
@@ -262,17 +291,82 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     ));
   }, [chats]);
 
+  const moveToProject = useCallback(async (chatId: string, projectId: string | null) => {
+    const { error } = await supabase
+      .from('chats')
+      .update({ project_id: projectId })
+      .eq('id', chatId);
+    
+    if (error) throw error;
+    
+    setChats(prev => prev.map(c =>
+      c.id === chatId ? { ...c, projectId, updatedAt: new Date() } : c
+    ));
+  }, []);
+
+  const createProject = useCallback(async (name: string, emoji: string = '📁'): Promise<string> => {
+    if (!user) throw new Error('User not authenticated');
+    
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({ user_id: user.id, name, emoji })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    const newProject: Project = {
+      id: data.id,
+      userId: data.user_id,
+      name: data.name,
+      emoji: data.emoji || '📁',
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
+    
+    setProjects(prev => [newProject, ...prev]);
+    return data.id;
+  }, [user]);
+
+  const renameProject = useCallback(async (projectId: string, name: string) => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ name })
+      .eq('id', projectId);
+    
+    if (error) throw error;
+    
+    setProjects(prev => prev.map(p =>
+      p.id === projectId ? { ...p, name, updatedAt: new Date() } : p
+    ));
+  }, []);
+
+  const deleteProject = useCallback(async (projectId: string) => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+    
+    if (error) throw error;
+    
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    if (selectedProjectId === projectId) setSelectedProjectId(null);
+  }, [selectedProjectId]);
+
   const currentChat = chats.find(chat => chat.id === currentChatId) || null;
 
   return (
     <ChatContext.Provider value={{
       chats,
+      projects,
       currentChatId,
       currentChat,
+      selectedProjectId,
       isLoadingChats,
       isTemporaryMode,
       temporaryMessages,
-      setTemporaryMode,
+      setTemporaryMode: setTemporaryModeHandler,
+      setSelectedProjectId,
       createChat,
       selectChat,
       addMessage,
@@ -282,6 +376,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       deleteChat,
       togglePinChat,
       archiveChat,
+      moveToProject,
+      createProject,
+      renameProject,
+      deleteProject,
       refreshChats,
     }}>
       {children}
