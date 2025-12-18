@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -19,6 +19,24 @@ export default function Login() {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  // Check for OAuth errors in URL
+  useEffect(() => {
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    
+    if (error) {
+      console.error('OAuth error:', error, errorDescription);
+      toast({ 
+        title: 'Error de autenticación', 
+        description: 'No pudimos iniciar sesión con Google. Probá con tu email y contraseña.',
+        variant: 'destructive' 
+      });
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/login');
+    }
+  }, [searchParams, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +75,7 @@ export default function Login() {
         if (error.includes('provider') || error.includes('Unsupported') || error.includes('not enabled')) {
           toast({ 
             title: 'Google no disponible', 
-            description: 'No pudimos iniciar sesión con Google en este momento. Usá tu email y contraseña.',
+            description: 'Todavía no podemos iniciar sesión con Google. Probá con tu email y contraseña.',
             variant: 'destructive' 
           });
         } else {
