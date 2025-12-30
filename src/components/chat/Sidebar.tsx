@@ -60,6 +60,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [newProjectDialog, setNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -67,6 +68,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [pendingMoveChat, setPendingMoveChat] = useState<string | null>(null);
   const [deleteConfirmChat, setDeleteConfirmChat] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Filter chats based on selected project and search
@@ -74,15 +76,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     .filter(c => {
       // Filter by project
       if (selectedProjectId && c.projectId !== selectedProjectId) return false;
-      // Filter out archived (we're removing archive feature but keeping data safe)
+      // Filter out archived
       if (c.isArchived) return false;
       // Filter by search
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
 
-  const pinnedChats = filteredChats.filter(c => c.isPinned);
-  const recentChats = filteredChats.filter(c => !c.isPinned);
+  // Sort: pinned first, then by date
+  const sortedChats = [...filteredChats].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+  });
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -90,6 +96,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       editInputRef.current.select();
     }
   }, [editingId]);
+
+  useEffect(() => {
+    if (searchModalOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [searchModalOpen]);
 
   const handleNewChat = async () => {
     await createChat();
@@ -167,9 +179,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       const projectId = destination.droppableId.replace('project-', '');
       await moveToProject(draggableId, projectId);
       toast({ title: 'Chat movido al proyecto' });
-    } else if (destination.droppableId === 'all-chats') {
-      await moveToProject(draggableId, null);
-      toast({ title: 'Chat removido del proyecto' });
     }
   };
 
@@ -375,6 +384,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     );
   };
 
+  // Chats filtered by search for the modal
+  const searchFilteredChats = chats
+    .filter(c => !c.isArchived)
+    .filter(c => {
+      if (!searchQuery) return true;
+      return c.title.toLowerCase().includes(searchQuery.toLowerCase());
+    })
+    .slice(0, 10);
+
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -394,6 +412,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Logo className="mb-4" variant="sidebar" />
           </div>
           
+          <div className="px-2 py-3 space-y-2">
+            {/* New Chat Button - Top like ChatGPT */}
+            <Button 
+              onClick={handleNewChat}
+              className="w-full justify-start gap-2 bg-primary hover:bg-crab-orange-hover text-primary-foreground"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo chat
+            </Button>
+            
+            {/* Search Button - Opens Modal like ChatGPT */}
+            <Button 
+              variant="outline"
+              onClick={() => setSearchModalOpen(true)}
+              className="w-full justify-start gap-2 text-sidebar-foreground/70 border-sidebar-border hover:bg-sidebar-accent/50"
+            >
+              <Search className="w-4 h-4" />
+              Buscar chats
+            </Button>
+          </div>
+          
           <ScrollArea className="flex-1 px-2 py-2">
             {/* Projects Section */}
             <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
@@ -402,38 +441,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <ChevronDown className={cn('w-3 h-3 transition-transform', !projectsOpen && '-rotate-90')} />
                   Proyectos
                 </CollapsibleTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6 text-sidebar-foreground/60 hover:text-sidebar-foreground"
-                  onClick={() => setNewProjectDialog(true)}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
               </div>
               <CollapsibleContent>
-                {/* All chats option */}
-                <Droppable droppableId="all-chats" isDropDisabled={false}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors',
-                        selectedProjectId === null
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/80',
-                        snapshot.isDraggingOver && 'bg-primary/20 ring-2 ring-primary'
-                      )}
-                      onClick={() => setSelectedProjectId(null)}
-                    >
-                      <Folder className="w-4 h-4 text-sidebar-foreground/60" />
-                      <span className="text-sm">Todos los chats</span>
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                {/* New Project - First item like ChatGPT */}
+                <button
+                  onClick={() => setNewProjectDialog(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  <span className="text-sm">Nuevo proyecto</span>
+                </button>
                 
+                {/* Project list */}
                 {projects.map(project => (
                   <Droppable key={project.id} droppableId={`project-${project.id}`}>
                     {(provided, snapshot) => (
@@ -452,9 +471,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         {selectedProjectId === project.id ? (
                           <FolderOpen className="w-4 h-4 text-primary" />
                         ) : (
-                          <span className="text-sm">{project.emoji}</span>
+                          <Folder className="w-4 h-4 text-sidebar-foreground/60" />
                         )}
-                        <span className="flex-1 text-sm truncate">{project.name}</span>
+                        <span className="flex-1 text-sm truncate">{project.emoji} {project.name}</span>
                         <span className="text-xs text-sidebar-foreground/40">
                           {chats.filter(c => c.projectId === project.id && !c.isArchived).length}
                         </span>
@@ -487,38 +506,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   </Droppable>
                 ))}
+                
+                {/* Show all chats when a project is selected */}
+                {selectedProjectId && (
+                  <button
+                    onClick={() => setSelectedProjectId(null)}
+                    className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent/50 transition-colors text-sm"
+                  >
+                    <X className="w-4 h-4" />
+                    Ver todos los chats
+                  </button>
+                )}
               </CollapsibleContent>
             </Collapsible>
             
             <div className="my-3 mx-3 border-t border-sidebar-border/30" />
             
-            {/* New Chat Button */}
-            <div className="px-2 mb-3">
-              <Button 
-                onClick={handleNewChat}
-                className="w-full justify-start gap-2 bg-primary hover:bg-crab-orange-hover text-primary-foreground"
-              >
-                <Plus className="w-4 h-4" />
-                Nuevo chat
-              </Button>
-            </div>
-            
-            {/* Search */}
-            <div className="px-2 mb-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sidebar-foreground/40" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar chats..."
-                  className="pl-9 h-9 bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground placeholder:text-sidebar-foreground/40"
-                />
-              </div>
-            </div>
-            
-            <div className="my-2 mx-3 border-t border-sidebar-border/30" />
-            
-            {/* Chats List */}
+            {/* Chats List - "Tus chats" like ChatGPT */}
             <div className="px-1">
               <p className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
                 Tus chats
@@ -527,25 +531,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Droppable droppableId="chats-list" isDropDisabled>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps}>
-                    {/* Pinned chats first */}
-                    {pinnedChats.length > 0 && (
-                      <div className="mb-2">
-                        {pinnedChats.map((chat, index) => (
-                          <ChatItem key={chat.id} chat={chat} index={index} />
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Recent chats */}
                     <AnimatePresence>
-                      {recentChats.map((chat, index) => (
-                        <ChatItem key={chat.id} chat={chat} index={pinnedChats.length + index} />
+                      {sortedChats.map((chat, index) => (
+                        <ChatItem key={chat.id} chat={chat} index={index} />
                       ))}
                     </AnimatePresence>
                     
-                    {filteredChats.length === 0 && (
+                    {sortedChats.length === 0 && (
                       <p className="px-3 py-4 text-sm text-sidebar-foreground/40 text-center">
-                        {searchQuery ? 'No se encontraron chats' : 'No hay chats aún'}
+                        No hay chats aún
                       </p>
                     )}
                     {provided.placeholder}
@@ -556,6 +550,73 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </ScrollArea>
         </motion.aside>
       </DragDropContext>
+
+      {/* Search Modal - Like ChatGPT */}
+      <Dialog open={searchModalOpen} onOpenChange={setSearchModalOpen}>
+        <DialogContent className="sm:max-w-lg p-0 gap-0">
+          <div className="flex items-center gap-3 p-4 border-b border-border">
+            <Search className="w-5 h-5 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Buscar chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-0 p-0 h-auto text-base focus-visible:ring-0 bg-transparent"
+            />
+            <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
+              Esc
+            </kbd>
+          </div>
+          
+          <div className="max-h-80 overflow-y-auto">
+            {/* New chat option */}
+            <button
+              onClick={() => {
+                handleNewChat();
+                setSearchModalOpen(false);
+                setSearchQuery('');
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/50"
+            >
+              <Plus className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-medium">Nuevo chat</span>
+            </button>
+            
+            {searchFilteredChats.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No se encontraron chats
+              </div>
+            ) : (
+              searchFilteredChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => {
+                    handleSelectChat(chat.id);
+                    setSearchModalOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-3 text-left',
+                    'hover:bg-accent transition-colors',
+                    'border-b border-border/50 last:border-0'
+                  )}
+                >
+                  <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">{chat.title}</p>
+                      {chat.isPinned && <Pin className="w-3 h-3 text-primary shrink-0" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {chat.messages.length} mensajes
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* New Project Dialog */}
       <Dialog open={newProjectDialog} onOpenChange={setNewProjectDialog}>
