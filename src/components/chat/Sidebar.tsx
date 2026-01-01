@@ -49,7 +49,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-const EMOJI_OPTIONS = ['📁', '💼', '🚀', '💡', '🎯', '📊', '🛠️', '🌟', '🔥', '📝'];
+// Emoji options removed - projects now work like ChatGPT (no emoji selector)
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { 
@@ -64,7 +64,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [newProjectDialog, setNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectEmoji, setNewProjectEmoji] = useState('📁');
+  
   const [pendingMoveChat, setPendingMoveChat] = useState<string | null>(null);
   const [deleteConfirmChat, setDeleteConfirmChat] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -156,11 +156,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
-    const projectId = await createProject(newProjectName.trim(), newProjectEmoji);
+    const projectId = await createProject(newProjectName.trim(), null);
     toast({ title: 'Proyecto creado' });
     setNewProjectDialog(false);
     setNewProjectName('');
-    setNewProjectEmoji('📁');
     
     // If we were moving a chat, move it to the new project
     if (pendingMoveChat) {
@@ -424,9 +423,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             
             {/* Search Button - Opens Modal like ChatGPT */}
             <Button 
-              variant="outline"
+              variant="ghost"
               onClick={() => setSearchModalOpen(true)}
-              className="w-full justify-start gap-2 text-sidebar-foreground/70 border-sidebar-border hover:bg-sidebar-accent/50"
+              className="w-full justify-start gap-2 bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground border-0"
             >
               <Search className="w-4 h-4" />
               Buscar chats
@@ -473,7 +472,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         ) : (
                           <Folder className="w-4 h-4 text-sidebar-foreground/60" />
                         )}
-                        <span className="flex-1 text-sm truncate">{project.emoji} {project.name}</span>
+                        <span className="flex-1 text-sm truncate">{project.name}</span>
                         <span className="text-xs text-sidebar-foreground/40">
                           {chats.filter(c => c.projectId === project.id && !c.isArchived).length}
                         </span>
@@ -618,7 +617,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </DialogContent>
       </Dialog>
 
-      {/* New Project Dialog */}
+      {/* New Project Dialog - Simple like ChatGPT (no emoji) */}
       <Dialog open={newProjectDialog} onOpenChange={setNewProjectDialog}>
         <DialogContent>
           <DialogHeader>
@@ -627,7 +626,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               Creá un proyecto para organizar tus chats
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="py-4">
             <div className="space-y-2">
               <Label>Nombre del proyecto</Label>
               <Input
@@ -637,26 +636,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreateProject();
                 }}
+                autoFocus
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Emoji</Label>
-              <div className="flex gap-2 flex-wrap">
-                {EMOJI_OPTIONS.map(emoji => (
-                  <button
-                    key={emoji}
-                    className={cn(
-                      'w-10 h-10 rounded-lg text-xl transition-colors',
-                      newProjectEmoji === emoji
-                        ? 'bg-primary/20 ring-2 ring-primary'
-                        : 'bg-muted hover:bg-muted/80'
-                    )}
-                    onClick={() => setNewProjectEmoji(emoji)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
           <DialogFooter>
