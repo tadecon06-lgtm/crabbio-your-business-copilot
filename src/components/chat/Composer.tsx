@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, DragEvent } from 'react';
-import { Send, Paperclip, Settings2, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { Send, Paperclip, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -133,10 +133,12 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
 
   const isImage = (type: string) => type.startsWith('image/');
 
+  const canSend = (message.trim() || attachments.length > 0) && !isLoading;
+
   return (
     <div 
       className={cn(
-        "border-t border-border bg-background/80 backdrop-blur-sm p-4 transition-colors",
+        "border-t border-border bg-background/95 backdrop-blur-sm p-4 transition-colors",
         isDragging && "bg-primary/5 border-primary"
       )}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -175,7 +177,11 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
           </div>
         )}
 
-        <div className="flex items-end gap-3 p-3 rounded-2xl border border-border bg-card shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+        <div className={cn(
+          "flex items-end gap-3 p-3 rounded-2xl border bg-card shadow-soft transition-all",
+          "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50",
+          isLoading && "opacity-70"
+        )}>
           <input
             ref={fileInputRef}
             type="file"
@@ -188,7 +194,7 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
+            className="shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             aria-label="Adjuntar archivo"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
@@ -203,7 +209,9 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
             onKeyDown={handleKeyDown}
             placeholder={isDragging ? "Soltá el archivo aquí..." : "Escribí tu mensaje..."}
             className={cn(
-              "flex-1 min-h-[24px] max-h-[200px] resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60",
+              "flex-1 min-h-[28px] max-h-[200px] resize-none border-0 bg-transparent py-2 px-1",
+              "focus-visible:ring-0 focus-visible:ring-offset-0",
+              "placeholder:text-muted-foreground/50",
               user?.fontSize === 'small' && 'text-sm',
               user?.fontSize === 'large' && 'text-lg'
             )}
@@ -213,13 +221,13 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
           
           <Button
             onClick={handleSubmit}
-            disabled={(!message.trim() && attachments.length === 0) || isLoading}
+            disabled={!canSend}
             size="icon"
             className={cn(
-              'shrink-0 rounded-xl transition-all',
-              (message.trim() || attachments.length > 0)
+              'shrink-0 h-10 w-10 rounded-xl transition-all',
+              canSend
                 ? 'bg-primary hover:bg-crab-orange-hover text-primary-foreground shadow-glow' 
-                : 'bg-muted text-muted-foreground'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
             )}
             aria-label="Enviar mensaje"
           >
@@ -227,7 +235,7 @@ export function Composer({ onSend, isLoading, initialValue = '' }: ComposerProps
           </Button>
         </div>
         
-        <p className="text-xs text-center text-muted-foreground mt-3">
+        <p className="text-xs text-center text-muted-foreground/70 mt-3">
           Crabbio puede cometer errores. Verificá la información importante.
         </p>
       </div>
