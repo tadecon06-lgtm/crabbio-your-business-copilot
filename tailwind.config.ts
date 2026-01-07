@@ -59,6 +59,7 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+          muted: "hsl(var(--sidebar-muted))",
         },
         chat: {
           user: "hsl(var(--chat-user))",
@@ -69,6 +70,7 @@ export default {
         crab: {
           orange: "hsl(var(--crab-orange))",
           "orange-hover": "hsl(var(--crab-orange-hover))",
+          "orange-glow": "hsl(var(--crab-orange-glow))",
           navy: "hsl(var(--navy))",
           "navy-light": "hsl(var(--navy-light))",
         },
@@ -94,15 +96,31 @@ export default {
           "0%, 60%, 100%": { opacity: "1" },
           "30%": { opacity: "0.3" },
         },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "typing": "typing 1.4s infinite",
+        "fade-in": "fade-in 200ms ease-out",
+        "slide-up": "slide-up 250ms ease-out",
       },
       boxShadow: {
-        "glow": "0 0 20px hsl(var(--primary) / 0.3)",
-        "glow-lg": "0 0 40px hsl(var(--primary) / 0.4)",
+        "glow": "0 0 16px hsl(var(--primary) / 0.25)",
+        "glow-lg": "0 0 32px hsl(var(--primary) / 0.3)",
+        "soft": "0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.08)",
+        "soft-lg": "0 4px 16px -4px rgba(0, 0, 0, 0.1), 0 8px 32px -8px rgba(0, 0, 0, 0.1)",
+      },
+      spacing: {
+        "18": "4.5rem",
+        "22": "5.5rem",
       },
     },
   },

@@ -28,16 +28,17 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className={cn(
-        'flex gap-4 p-4 rounded-2xl',
+        'flex gap-4 px-6 py-5 rounded-2xl',
         isUser ? 'bg-chat-user' : 'bg-chat-assistant'
       )}
     >
-      <Avatar className="w-8 h-8 shrink-0">
+      <Avatar className="w-9 h-9 shrink-0 shadow-sm">
         <AvatarFallback className={cn(
-          'text-xs font-semibold',
+          'text-sm font-semibold',
           isUser ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
         )}>
           {isUser ? user?.name?.charAt(0).toUpperCase() || 'U' : '🦀'}
@@ -45,7 +46,7 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
       </Avatar>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-2">
           <span className={cn(
             'text-sm font-semibold',
             isUser ? 'text-chat-user-foreground' : 'text-chat-assistant-foreground'
@@ -55,7 +56,7 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
         </div>
         
         <div className={cn(
-          'prose max-w-none',
+          'prose max-w-none leading-relaxed',
           isUser ? 'text-chat-user-foreground' : 'text-chat-assistant-foreground',
           'prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5',
           fontSize === 'small' && 'text-sm',
@@ -73,14 +74,14 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
         </div>
         
         {!isUser && !isStreaming && (
-          <div className="flex items-center gap-1 mt-3">
+          <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/50">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCopy}
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+              {copied ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
               {copied ? 'Copiado' : 'Copiar'}
             </Button>
             
@@ -89,7 +90,7 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
               size="sm"
               onClick={() => setFeedback('positive')}
               className={cn(
-                'h-7 px-2 text-xs',
+                'h-8 px-2 text-xs transition-colors',
                 feedback === 'positive' ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -101,7 +102,7 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
               size="sm"
               onClick={() => setFeedback('negative')}
               className={cn(
-                'h-7 px-2 text-xs',
+                'h-8 px-2 text-xs transition-colors',
                 feedback === 'negative' ? 'text-red-500' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -113,9 +114,9 @@ export function MessageItem({ message, isStreaming, onRegenerate, fontSize = 'me
                 variant="ghost"
                 size="sm"
                 onClick={onRegenerate}
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                 Regenerar
               </Button>
             )}

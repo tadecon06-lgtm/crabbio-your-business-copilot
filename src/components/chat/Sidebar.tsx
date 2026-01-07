@@ -49,8 +49,6 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-// Emoji options removed - projects now work like ChatGPT (no emoji selector)
-
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { 
     chats, projects, currentChatId, selectedProjectId,
@@ -74,11 +72,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Filter chats based on selected project and search
   const filteredChats = chats
     .filter(c => {
-      // Filter by project
       if (selectedProjectId && c.projectId !== selectedProjectId) return false;
-      // Filter out archived
       if (c.isArchived) return false;
-      // Filter by search
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
@@ -161,7 +156,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     setNewProjectDialog(false);
     setNewProjectName('');
     
-    // If we were moving a chat, move it to the new project
     if (pendingMoveChat) {
       await moveToProject(pendingMoveChat, projectId);
       setPendingMoveChat(null);
@@ -173,7 +167,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     
     if (!destination) return;
     
-    // Check if dropped on a project
     if (destination.droppableId.startsWith('project-')) {
       const projectId = destination.droppableId.replace('project-', '');
       await moveToProject(draggableId, projectId);
@@ -245,6 +238,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const ChatItem = ({ chat, index }: { chat: typeof chats[0]; index: number }) => {
     const isEditing = editingId === chat.id;
+    const isActive = currentChatId === chat.id;
     
     return (
       <Draggable draggableId={chat.id} index={index}>
@@ -254,15 +248,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             className={cn(
-              'group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors',
-              currentChatId === chat.id && !isEditing
+              'group flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all',
+              isActive && !isEditing
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
-                : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/80',
-              snapshot.isDragging && 'bg-sidebar-accent shadow-lg'
+                : 'hover:bg-sidebar-accent/60 text-sidebar-foreground/80',
+              snapshot.isDragging && 'bg-sidebar-accent shadow-lg ring-1 ring-primary/30'
             )}
             onClick={() => handleSelectChat(chat.id)}
           >
-            <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-foreground/60" />
+            <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-muted" />
             
             {isEditing ? (
               <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -289,7 +283,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-6 h-6 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  className="w-6 h-6 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   onClick={cancelEdit}
                 >
                   <X className="w-3.5 h-3.5" />
@@ -306,7 +300,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                      className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </Button>
@@ -339,7 +333,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             onClick={() => handleMoveToProject(chat.id, project.id)}
                             disabled={chat.projectId === project.id}
                           >
-                            <span className="mr-2">{project.emoji}</span>
+                            <Folder className="w-4 h-4 mr-2" />
                             {project.name}
                           </DropdownMenuItem>
                         ))}
@@ -401,51 +395,53 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             width: isOpen ? 280 : 0,
             opacity: isOpen ? 1 : 0,
           }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
           className={cn(
             'h-screen bg-sidebar border-r border-sidebar-border flex flex-col overflow-hidden',
             'fixed lg:relative z-40'
           )}
         >
+          {/* Header */}
           <div className="p-4 border-b border-sidebar-border/50">
-            <Logo className="mb-4" variant="sidebar" />
+            <Logo className="mb-0" variant="sidebar" />
           </div>
           
-          <div className="px-2 py-3 space-y-2">
-            {/* New Chat Button - Top like ChatGPT */}
+          {/* Actions */}
+          <div className="px-3 py-4 space-y-2">
+            {/* New Chat Button - Prominent */}
             <Button 
               onClick={handleNewChat}
-              className="w-full justify-start gap-2 bg-primary hover:bg-crab-orange-hover text-primary-foreground"
+              className="w-full justify-start gap-2.5 h-11 bg-primary hover:bg-crab-orange-hover text-primary-foreground font-medium shadow-glow transition-all"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               Nuevo chat
             </Button>
             
-            {/* Search Button - Opens Modal like ChatGPT */}
+            {/* Search Button */}
             <Button 
               variant="ghost"
               onClick={() => setSearchModalOpen(true)}
-              className="w-full justify-start gap-2 bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground border-0"
+              className="w-full justify-start gap-2.5 h-10 bg-sidebar-accent/70 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
             >
               <Search className="w-4 h-4" />
-              Buscar chats
+              <span className="text-sm">Buscar conversaciones...</span>
             </Button>
           </div>
           
-          <ScrollArea className="flex-1 px-2 py-2">
+          <ScrollArea className="flex-1 px-2">
             {/* Projects Section */}
             <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
               <div className="flex items-center justify-between px-3 py-2">
-                <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider hover:text-sidebar-foreground/70 transition-colors">
+                <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-sidebar-muted uppercase tracking-wider hover:text-sidebar-foreground transition-colors">
                   <ChevronDown className={cn('w-3 h-3 transition-transform', !projectsOpen && '-rotate-90')} />
                   Proyectos
                 </CollapsibleTrigger>
               </div>
-              <CollapsibleContent>
-                {/* New Project - First item like ChatGPT */}
+              <CollapsibleContent className="space-y-0.5">
+                {/* New Project */}
                 <button
                   onClick={() => setNewProjectDialog(true)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
                 >
                   <FolderPlus className="w-4 h-4" />
                   <span className="text-sm">Nuevo proyecto</span>
@@ -459,10 +455,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={cn(
-                          'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors',
+                          'group flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all',
                           selectedProjectId === project.id
                             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/80',
+                            : 'hover:bg-sidebar-accent/60 text-sidebar-foreground/80',
                           snapshot.isDraggingOver && 'bg-primary/20 ring-2 ring-primary'
                         )}
                         onClick={() => setSelectedProjectId(project.id)}
@@ -470,10 +466,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         {selectedProjectId === project.id ? (
                           <FolderOpen className="w-4 h-4 text-primary" />
                         ) : (
-                          <Folder className="w-4 h-4 text-sidebar-foreground/60" />
+                          <Folder className="w-4 h-4 text-sidebar-muted" />
                         )}
                         <span className="flex-1 text-sm truncate">{project.name}</span>
-                        <span className="text-xs text-sidebar-foreground/40">
+                        <span className="text-xs text-sidebar-muted">
                           {chats.filter(c => c.projectId === project.id && !c.isArchived).length}
                         </span>
                         <DropdownMenu>
@@ -481,7 +477,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
@@ -510,7 +506,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {selectedProjectId && (
                   <button
                     onClick={() => setSelectedProjectId(null)}
-                    className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent/50 transition-colors text-sm"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 mt-1 rounded-lg text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors text-sm"
                   >
                     <X className="w-4 h-4" />
                     Ver todos los chats
@@ -521,15 +517,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             
             <div className="my-3 mx-3 border-t border-sidebar-border/30" />
             
-            {/* Chats List - "Tus chats" like ChatGPT */}
-            <div className="px-1">
-              <p className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+            {/* Chats List */}
+            <div className="px-1 pb-4">
+              <p className="px-3 py-2 text-xs font-semibold text-sidebar-muted uppercase tracking-wider">
                 Tus chats
               </p>
               
               <Droppable droppableId="chats-list" isDropDisabled>
                 {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-0.5">
                     <AnimatePresence>
                       {sortedChats.map((chat, index) => (
                         <ChatItem key={chat.id} chat={chat} index={index} />
@@ -537,7 +533,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     </AnimatePresence>
                     
                     {sortedChats.length === 0 && (
-                      <p className="px-3 py-4 text-sm text-sidebar-foreground/40 text-center">
+                      <p className="px-3 py-6 text-sm text-sidebar-muted text-center">
                         No hay chats aún
                       </p>
                     )}
@@ -550,19 +546,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </motion.aside>
       </DragDropContext>
 
-      {/* Search Modal - Like ChatGPT */}
+      {/* Search Modal */}
       <Dialog open={searchModalOpen} onOpenChange={setSearchModalOpen}>
-        <DialogContent className="sm:max-w-lg p-0 gap-0">
+        <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b border-border">
             <Search className="w-5 h-5 text-muted-foreground" />
             <Input
               ref={searchInputRef}
-              placeholder="Buscar chats..."
+              placeholder="Buscar conversaciones..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-0 p-0 h-auto text-base focus-visible:ring-0 bg-transparent"
             />
-            <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
+            <kbd className="hidden sm:inline-flex px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
               Esc
             </kbd>
           </div>
@@ -617,9 +613,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </DialogContent>
       </Dialog>
 
-      {/* New Project Dialog - Simple like ChatGPT (no emoji) */}
+      {/* New Project Dialog */}
       <Dialog open={newProjectDialog} onOpenChange={setNewProjectDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo proyecto</DialogTitle>
             <DialogDescription>

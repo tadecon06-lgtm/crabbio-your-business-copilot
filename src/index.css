@@ -12,11 +12,12 @@
     /* Crabbio Brand Colors */
     --crab-orange: 9 78% 60%;
     --crab-orange-hover: 9 72% 52%;
+    --crab-orange-glow: 9 78% 65%;
     --navy: 210 52% 11%;
     --navy-light: 210 45% 15%;
     
-    /* Light Mode */
-    --background: 210 40% 98%;
+    /* Light Mode - Clean & Professional */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
     
     --card: 0 0% 100%;
@@ -28,37 +29,39 @@
     --primary: 9 78% 60%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 210 40% 96%;
+    --secondary: 210 25% 94%;
     --secondary-foreground: 222 47% 11%;
     
-    --muted: 210 40% 96%;
+    --muted: 210 20% 94%;
     --muted-foreground: 215 16% 47%;
     
-    --accent: 210 40% 96%;
+    --accent: 210 25% 94%;
     --accent-foreground: 222 47% 11%;
     
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
     --ring: 9 78% 60%;
     
     --radius: 0.75rem;
     
-    --sidebar-background: 210 52% 11%;
+    /* Sidebar - Dark in both modes for consistency */
+    --sidebar-background: 220 50% 8%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 9 78% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 45% 15%;
+    --sidebar-accent: 210 45% 14%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 210 45% 20%;
+    --sidebar-border: 210 45% 16%;
     --sidebar-ring: 9 78% 60%;
+    --sidebar-muted: 210 30% 40%;
     
-    /* Chat specific */
-    --chat-user: 210 52% 11%;
+    /* Chat specific - Strong differentiation */
+    --chat-user: 220 50% 8%;
     --chat-user-foreground: 210 40% 98%;
-    --chat-assistant: 210 40% 96%;
+    --chat-assistant: 210 20% 96%;
     --chat-assistant-foreground: 222 47% 11%;
     
     /* Font sizes */
@@ -66,46 +69,49 @@
   }
   
   .dark {
-    --background: 220 50% 5%;
+    --background: 220 50% 4%;
     --foreground: 210 40% 98%;
     
-    --card: 222 47% 8%;
+    --card: 220 50% 7%;
     --card-foreground: 210 40% 98%;
     
-    --popover: 222 47% 8%;
+    --popover: 220 50% 7%;
     --popover-foreground: 210 40% 98%;
     
     --primary: 9 78% 60%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 210 45% 15%;
+    --secondary: 210 45% 12%;
     --secondary-foreground: 210 40% 98%;
     
-    --muted: 210 45% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 45% 12%;
+    --muted-foreground: 215 20% 60%;
     
-    --accent: 210 45% 15%;
+    --accent: 210 45% 12%;
     --accent-foreground: 210 40% 98%;
     
-    --destructive: 0 62% 31%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 210 40% 98%;
     
-    --border: 210 45% 18%;
-    --input: 210 45% 18%;
+    --border: 210 45% 14%;
+    --input: 210 45% 14%;
     --ring: 9 78% 60%;
     
-    --sidebar-background: 220 50% 4%;
+    /* Sidebar - Slightly darker than background */
+    --sidebar-background: 220 55% 3%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 9 78% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 45% 12%;
+    --sidebar-accent: 210 45% 10%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 210 45% 15%;
+    --sidebar-border: 210 45% 12%;
     --sidebar-ring: 9 78% 60%;
+    --sidebar-muted: 210 25% 50%;
     
+    /* Chat specific */
     --chat-user: 9 78% 60%;
     --chat-user-foreground: 0 0% 100%;
-    --chat-assistant: 222 47% 8%;
+    --chat-assistant: 220 50% 8%;
     --chat-assistant-foreground: 210 40% 98%;
   }
   
@@ -136,17 +142,37 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
+  
+  /* Typography hierarchy improvements */
+  h1 {
+    @apply text-3xl font-bold tracking-tight;
+    line-height: 1.2;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold tracking-tight;
+    line-height: 1.25;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold;
+    line-height: 1.3;
+  }
+  
+  p {
+    line-height: 1.6;
+  }
 }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
   }
   
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -154,44 +180,84 @@
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.3);
+    background-color: hsl(var(--muted-foreground) / 0.2);
     border-radius: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--muted-foreground) / 0.5);
+    background-color: hsl(var(--muted-foreground) / 0.35);
   }
   
   .chat-text {
     font-size: var(--chat-font-size);
-    line-height: 1.6;
+    line-height: 1.7;
+  }
+  
+  /* Functional animations only */
+  .transition-fast {
+    transition: all 150ms ease-out;
+  }
+  
+  .transition-normal {
+    transition: all 200ms ease-out;
+  }
+  
+  /* Card hover effect - subtle */
+  .card-hover {
+    @apply transition-fast;
+  }
+  
+  .card-hover:hover {
+    @apply shadow-md;
+    transform: translateY(-1px);
+  }
+  
+  /* Suggestion card specific hover */
+  .suggestion-card {
+    @apply transition-fast;
+  }
+  
+  .suggestion-card:hover {
+    transform: scale(1.02);
+    @apply shadow-md;
   }
 }
 
-/* Animations */
+/* Animations - Functional only */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
-  50% { box-shadow: 0 0 20px 5px hsl(var(--primary) / 0.2); }
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 16px 4px hsl(var(--primary) / 0.15); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 200ms ease-out;
 }
 
 .animate-slide-up {
-  animation: slideUp 0.4s ease-out;
+  animation: slideUp 250ms ease-out;
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 2s infinite;
+}
+
+/* Focus ring consistent styling */
+.focus-ring {
+  @apply outline-none ring-2 ring-primary/30 ring-offset-2 ring-offset-background;
+}
+
+/* Input focus states */
+input:focus-visible,
+textarea:focus-visible {
+  @apply outline-none ring-2 ring-primary/30 border-primary/50;
 }
