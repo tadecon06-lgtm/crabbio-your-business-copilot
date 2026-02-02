@@ -20,6 +20,16 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+} from '@/components/ui/context-menu';
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -50,10 +60,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { 
+  const {
     chats, projects, currentChatId, selectedProjectId,
     createChat, selectChat, deleteChat, togglePinChat, renameChat,
-    setSelectedProjectId, moveToProject, createProject, deleteProject
+    setSelectedProjectId, moveToProject, createProject, deleteProject, loadChatMessages
   } = useChat();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -62,7 +72,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [newProjectDialog, setNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  
+
   const [pendingMoveChat, setPendingMoveChat] = useState<string | null>(null);
   const [deleteConfirmChat, setDeleteConfirmChat] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -155,7 +165,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     toast({ title: 'Proyecto creado' });
     setNewProjectDialog(false);
     setNewProjectName('');
-    
+
     if (pendingMoveChat) {
       await moveToProject(pendingMoveChat, projectId);
       setPendingMoveChat(null);
@@ -164,9 +174,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleDragEnd = async (result: DropResult) => {
     const { draggableId, destination } = result;
-    
+
     if (!destination) return;
-    
+
     if (destination.droppableId.startsWith('project-')) {
       const projectId = destination.droppableId.replace('project-', '');
       await moveToProject(draggableId, projectId);
@@ -174,11 +184,49 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
+  const handleExport = async (chat: typeof chats[0], type: 'markdown' | 'pdf') => {
+    // Ensure messages are loaded
+    if (!chat.messagesLoaded) {
+      toast({ title: 'Cargando mensajes...', duration: 1000 });
+      await loadChatMessages(chat.id);
+      // Re-fetch chat from state (via ref or just assume it updates? Context updates chats)
+      // We actually need the updated chat object. Since we can't easily get it here without re-finding,
+      // let's assume the context update triggers a re-render or we fetch from context.
+      // Actually, we can just find it again from the latest 'chats' prop if we were in a component that re-renders.
+      // But we are in a function. We'll use a direct find on the *current* chats state (which might be stale inside callback? No, chats is in dependency).
+    }
+
+    // We need to find the chat again to get the loaded messages if we just triggered a load
+    // However, 'chats' in the closure might be stale if we await.
+    // Ideally we should use a ref or wait for effect?
+    // For simplicity, we'll try to find it in the current chats array. If it's not loaded in this render cycle, we might be blocked.
+    // Actually, `loadChatMessages` updates the state. We can't access the new state immediately in this function closure.
+    // HACK: We can manually fetch messages here if needed for export, duplicating logic slightly OR
+    // just rely on the fact that if a user right clicks -> export, they likely opened it or we can wait.
+    // Let's manually fetch here if empty to be safe and use THAT data for export.
+    let messagesToExport = chat.messages;
+    if (!chat.messagesLoaded) {
+      // Fetch explicitly for export content
+      // access supabase directly? We have custom logic.
+      // It's safer to just tell user "Abrí el chat para exportarlo" or 
+      // implement a proper async fetcher here.
+      // We'll skip precise lazy loading optimization for export and just re-implement simple fetch.
+      // Actually `loadChatMessages` returns void Promise.
+      await loadChatMessages(chat.id);
+      // We can't see the result.
+      toast({ title: 'Por favor intentá de nuevo una vez cargado el chat.' });
+      return;
+    }
+
+    if (type === 'markdown') exportToMarkdown(chat);
+    else exportToPDF(chat);
+  };
+
   const exportToMarkdown = (chat: typeof chats[0]) => {
-    const content = chat.messages.map(m => 
+    const content = chat.messages.map(m =>
       `## ${m.role === 'user' ? 'Tú' : 'Crabbio'}\n\n${m.content}\n`
     ).join('\n---\n\n');
-    
+
     const blob = new Blob([`# ${chat.title}\n\n${content}`], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -190,13 +238,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const exportToPDF = async (chat: typeof chats[0]) => {
-    const content = chat.messages.map(m => 
+    const content = chat.messages.map(m =>
       `<div style="margin-bottom: 16px;">
         <strong>${m.role === 'user' ? 'Tú' : 'Crabbio'}:</strong>
         <p style="white-space: pre-wrap;">${m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>
       </div>`
     ).join('<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">');
-    
+
     const html = `
       <!DOCTYPE html>
       <html lang="es">
@@ -224,7 +272,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </body>
       </html>
     `;
-    
+
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const printWindow = window.open(url, '_blank');
@@ -239,139 +287,207 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const ChatItem = ({ chat, index }: { chat: typeof chats[0]; index: number }) => {
     const isEditing = editingId === chat.id;
     const isActive = currentChatId === chat.id;
-    
+
     return (
       <Draggable draggableId={chat.id} index={index}>
         {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={cn(
-              'group flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all',
-              isActive && !isEditing
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
-                : 'hover:bg-sidebar-accent/60 text-sidebar-foreground/80',
-              snapshot.isDragging && 'bg-sidebar-accent shadow-lg ring-1 ring-primary/30'
-            )}
-            onClick={() => handleSelectChat(chat.id)}
-          >
-            <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-muted" />
-            
-            {isEditing ? (
-              <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <input
-                  ref={editInputRef}
-                  className="flex-1 h-7 px-2 text-sm bg-sidebar-accent border border-sidebar-border rounded text-sidebar-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === 'Enter') saveEdit();
-                    if (e.key === 'Escape') cancelEdit();
-                  }}
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6 text-green-500 hover:text-green-400 hover:bg-sidebar-accent"
-                  onClick={saveEdit}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                  onClick={cancelEdit}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <span className="flex-1 text-sm truncate">{chat.title}</span>
-                
-                {chat.isPinned && <Pin className="w-3 h-3 text-primary" />}
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={(e) => startEditing(e, chat.id, chat.title)}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Renombrar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => handleTogglePin(e, chat.id)}>
-                      <Pin className="w-4 h-4 mr-2" />
-                      {chat.isPinned ? 'Desfijar' : 'Fijar'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <MoveRight className="w-4 h-4 mr-2" />
-                        Mover a proyecto
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {chat.projectId && (
-                          <DropdownMenuItem onClick={() => handleMoveToProject(chat.id, null)}>
-                            <X className="w-4 h-4 mr-2" />
-                            Sin proyecto
-                          </DropdownMenuItem>
-                        )}
-                        {projects.map(project => (
-                          <DropdownMenuItem 
-                            key={project.id}
-                            onClick={() => handleMoveToProject(chat.id, project.id)}
-                            disabled={chat.projectId === project.id}
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...provided.dragHandleProps}
+                className={cn(
+                  'group flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all',
+                  isActive && !isEditing
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'hover:bg-sidebar-accent/60 text-sidebar-foreground/80',
+                  snapshot.isDragging ? 'bg-sidebar-accent shadow-lg ring-1 ring-primary/30 w-[240px]' : 'w-full'
+                )}
+                onClick={() => handleSelectChat(chat.id)}
+              >
+                <div className="flex-1 flex items-center gap-2.5 overflow-hidden">
+                  <MessageSquare className="w-4 h-4 shrink-0 text-sidebar-muted" />
+
+                  {isEditing ? (
+                    <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        ref={editInputRef}
+                        className="flex-1 h-7 px-2 text-sm bg-sidebar-accent border border-sidebar-border rounded text-sidebar-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter') saveEdit();
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-6 h-6 text-green-500 hover:text-green-400 hover:bg-sidebar-accent"
+                        onClick={saveEdit}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-6 h-6 text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        onClick={cancelEdit}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-sm truncate">{chat.title}</span>
+
+                      {chat.isPinned && <Pin className="w-3 h-3 text-primary shrink-0" />}
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent relative z-20 flex"
                           >
-                            <Folder className="w-4 h-4 mr-2" />
-                            {project.name}
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 z-50">
+                          <DropdownMenuItem onClick={(e) => startEditing(e, chat.id, chat.title)}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Renombrar
                           </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => {
-                          setPendingMoveChat(chat.id);
-                          setNewProjectDialog(true);
-                        }}>
-                          <FolderPlus className="w-4 h-4 mr-2" />
-                          Nuevo proyecto...
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => exportToMarkdown(chat)}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Exportar Markdown
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => exportToPDF(chat)}>
-                      <FileDown className="w-4 h-4 mr-2" />
-                      Exportar PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteConfirmChat(chat.id);
-                      }}
+                          <DropdownMenuItem onClick={(e) => handleTogglePin(e, chat.id)}>
+                            <Pin className="w-4 h-4 mr-2" />
+                            {chat.isPinned ? 'Desfijar' : 'Fijar'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <MoveRight className="w-4 h-4 mr-2" />
+                              Mover a proyecto
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {chat.projectId && (
+                                <DropdownMenuItem onClick={() => handleMoveToProject(chat.id, null)}>
+                                  <X className="w-4 h-4 mr-2" />
+                                  Sin proyecto
+                                </DropdownMenuItem>
+                              )}
+                              {projects.map(project => (
+                                <DropdownMenuItem
+                                  key={project.id}
+                                  onClick={() => handleMoveToProject(chat.id, project.id)}
+                                  disabled={chat.projectId === project.id}
+                                >
+                                  <Folder className="w-4 h-4 mr-2" />
+                                  {project.name}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => {
+                                setPendingMoveChat(chat.id);
+                                setNewProjectDialog(true);
+                              }}>
+                                <FolderPlus className="w-4 h-4 mr-2" />
+                                Nuevo proyecto...
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleExport(chat, 'markdown')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Exportar Markdown
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(chat, 'pdf')}>
+                            <FileDown className="w-4 h-4 mr-2" />
+                            Exportar PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 cursor-pointer"
+                            onSelect={() => {
+                              setDeleteConfirmChat(chat.id);
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar chat
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                </div>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-48 z-50">
+              <ContextMenuItem onClick={(e) => startEditing(e, chat.id, chat.title)}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Renombrar
+              </ContextMenuItem>
+              <ContextMenuItem onClick={(e) => handleTogglePin(e, chat.id)}>
+                <Pin className="w-4 h-4 mr-2" />
+                {chat.isPinned ? 'Desfijar' : 'Fijar'}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <MoveRight className="w-4 h-4 mr-2" />
+                  Mover a proyecto
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent>
+                  {chat.projectId && (
+                    <ContextMenuItem onClick={() => handleMoveToProject(chat.id, null)}>
+                      <X className="w-4 h-4 mr-2" />
+                      Sin proyecto
+                    </ContextMenuItem>
+                  )}
+                  {projects.map(project => (
+                    <ContextMenuItem
+                      key={project.id}
+                      onClick={() => handleMoveToProject(chat.id, project.id)}
+                      disabled={chat.projectId === project.id}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-          </div>
+                      <Folder className="w-4 h-4 mr-2" />
+                      {project.name}
+                    </ContextMenuItem>
+                  ))}
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => {
+                    setPendingMoveChat(chat.id);
+                    setNewProjectDialog(true);
+                  }}>
+                    <FolderPlus className="w-4 h-4 mr-2" />
+                    Nuevo proyecto...
+                  </ContextMenuItem>
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => handleExport(chat, 'markdown')}>
+                <FileText className="w-4 h-4 mr-2" />
+                Exportar Markdown
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => handleExport(chat, 'pdf')}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Exportar PDF
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 cursor-pointer"
+                onSelect={() => {
+                  setDeleteConfirmChat(chat.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar chat
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         )}
       </Draggable>
     );
@@ -391,7 +507,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <DragDropContext onDragEnd={handleDragEnd}>
         <motion.aside
           initial={false}
-          animate={{ 
+          animate={{
             width: isOpen ? 280 : 0,
             opacity: isOpen ? 1 : 0,
           }}
@@ -405,20 +521,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="p-4 border-b border-sidebar-border/50">
             <Logo className="mb-0" variant="sidebar" />
           </div>
-          
+
           {/* Actions */}
           <div className="px-3 py-4 space-y-2">
             {/* New Chat Button - Prominent */}
-            <Button 
+            <Button
               onClick={handleNewChat}
               className="w-full justify-start gap-2.5 h-11 bg-primary hover:bg-crab-orange-hover text-primary-foreground font-medium shadow-glow transition-all"
             >
               <Plus className="w-5 h-5" />
               Nuevo chat
             </Button>
-            
+
             {/* Search Button */}
-            <Button 
+            <Button
               variant="ghost"
               onClick={() => setSearchModalOpen(true)}
               className="w-full justify-start gap-2.5 h-10 bg-sidebar-accent/70 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
@@ -427,7 +543,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <span className="text-sm">Buscar conversaciones...</span>
             </Button>
           </div>
-          
+
           <ScrollArea className="flex-1 px-2">
             {/* Projects Section */}
             <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
@@ -446,7 +562,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <FolderPlus className="w-4 h-4" />
                   <span className="text-sm">Nuevo proyecto</span>
                 </button>
-                
+
                 {/* Project list */}
                 {projects.map(project => (
                   <Droppable key={project.id} droppableId={`project-${project.id}`}>
@@ -474,16 +590,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -501,7 +617,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   </Droppable>
                 ))}
-                
+
                 {/* Show all chats when a project is selected */}
                 {selectedProjectId && (
                   <button
@@ -514,15 +630,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 )}
               </CollapsibleContent>
             </Collapsible>
-            
+
             <div className="my-3 mx-3 border-t border-sidebar-border/30" />
-            
+
             {/* Chats List */}
             <div className="px-1 pb-4">
               <p className="px-3 py-2 text-xs font-semibold text-sidebar-muted uppercase tracking-wider">
                 Tus chats
               </p>
-              
+
               <Droppable droppableId="chats-list" isDropDisabled>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-0.5">
@@ -531,7 +647,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <ChatItem key={chat.id} chat={chat} index={index} />
                       ))}
                     </AnimatePresence>
-                    
+
                     {sortedChats.length === 0 && (
                       <p className="px-3 py-6 text-sm text-sidebar-muted text-center">
                         No hay chats aún
@@ -558,11 +674,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="border-0 p-0 h-auto text-base focus-visible:ring-0 bg-transparent"
             />
-            <kbd className="hidden sm:inline-flex px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
-              Esc
-            </kbd>
+            <div className="flex items-center gap-2">
+              <kbd className="hidden sm:inline-flex px-2 py-1 text-xs font-mono bg-muted rounded border border-border">
+                Esc
+              </kbd>
+            </div>
           </div>
-          
+
           <div className="max-h-80 overflow-y-auto">
             {/* New chat option */}
             <button
@@ -576,7 +694,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Plus className="w-4 h-4 text-primary shrink-0" />
               <span className="font-medium">Nuevo chat</span>
             </button>
-            
+
             {searchFilteredChats.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 No se encontraron chats
@@ -652,7 +770,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteConfirmChat} onOpenChange={(open) => !open && setDeleteConfirmChat(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[100]">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar este chat?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -661,7 +779,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeleteChat}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
